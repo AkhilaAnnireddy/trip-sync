@@ -1,0 +1,37 @@
+spring:
+  application:
+    name: tripsync-backend
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/tripsync_db
+    username: tripsync_user
+    password: tripsync_password
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+server:
+  port: 8080
+
+jwt:
+  secret: your-secret-key-change-this-to-something-secure-min-256-bits
+  expiration: 86400000
+
+logging:
+  level:
+    com.tripsync: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: DEBUG
