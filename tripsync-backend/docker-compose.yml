@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: tripsync-postgres
+    environment:
+      POSTGRES_DB: tripsync_db
+      POSTGRES_USER: tripsync_user
+      POSTGRES_PASSWORD: tripsync_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - tripsync-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tripsync-backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tripsync_db
+      SPRING_DATASOURCE_USERNAME: tripsync_user
+      SPRING_DATASOURCE_PASSWORD: tripsync_password
+      JWT_SECRET: your-secret-key-change-this-to-something-secure-min-256-bits
+      JWT_EXPIRATION: 86400000
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    networks:
+      - tripsync-network
+
+volumes:
+  postgres-data:
+
+networks:
+  tripsync-network:
+    driver: bridge
