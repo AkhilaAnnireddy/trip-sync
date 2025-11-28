@@ -224,7 +224,7 @@ export const StopsAPI = {
   
   reorderStops: async (tripId, stopIds) => {
     return await apiFetch(`/trips/${tripId}/stops/reorder`, {
-      method: 'POST',
+      method: 'PUT',
       body: JSON.stringify({ stopIds }),
     });
   },

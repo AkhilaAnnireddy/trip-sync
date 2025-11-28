@@ -130,17 +130,6 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
   const addCustomPin = async (pin) => {
     if (currentTrip && currentUser) {
       try {
-        const stopData = {
-          placeName: pin.name,
-          fullAddress: pin.address,
-          customName: pin.name,
-          description: pin.description || '',
-          latitude: pin.lat,
-          longitude: pin.lng,
-        };
-
-        const createdStop = await StopsAPI.addStopToTrip(currentTrip.id, stopData);
-
         await loadStopsForTrip(currentTrip.id);
       } catch (error) {
         console.error('Error adding stop:', error);
