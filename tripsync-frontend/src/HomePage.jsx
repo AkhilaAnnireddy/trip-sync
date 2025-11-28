@@ -45,7 +45,7 @@ export default function HomePage({ onGetStarted }) {
                 onClick={() => setShowLogin(true)}
                 className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md hover:shadow-lg"
               >
-                Get Started
+                Login
               </button>
             </div>
 
