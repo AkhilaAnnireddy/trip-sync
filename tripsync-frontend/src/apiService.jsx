@@ -30,9 +30,18 @@ const apiFetch = async (endpoint, options = {}) => {
     throw new Error(`API Error: ${response.status}`);
   }
 
-  if (response.status === 204) return {};
+  // Handle 204 No Content response
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
+    return {};
+  }
   
-  return await response.json();
+  // Check if response has content
+  const contentType = response.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    return await response.json();
+  }
+  
+  return {};
 };
 
 // Authentication API
@@ -139,4 +148,90 @@ export const ExpensesAPI = {
       method: 'DELETE',
     });
   },
+};
+// Participants/Invite API
+export const InviteAPI = {
+  // Change from GET to POST to create a new invite
+  generateInviteLink: async (tripId) => {
+    return await apiFetch(`/trips/${tripId}/invites`, {
+      method: 'POST',  // Changed from GET to POST
+      body: JSON.stringify({}), // Empty body for POST request
+    });
+  },
+  
+  // Get invite details by token
+  getInviteDetails: async (token) => {
+    return await apiFetch(`/invites/${token}`);
+  },
+  
+  // Accept an invite
+  acceptInvite: async (token) => {
+    return await apiFetch(`/invites/${token}/accept`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  },
+  
+  // Get all invites for a trip
+  getTripInvites: async (tripId) => {
+    return await apiFetch(`/trips/${tripId}/invites`);
+  },
+  
+  // Revoke an invite
+  revokeInvite: async (tripId, token) => {
+    return await apiFetch(`/trips/${tripId}/invites/${token}`, {
+      method: 'DELETE',
+    });
+  },
+  
+  registerWithInvite: async (userData, inviteToken) => {
+    return await apiFetch('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: userData.email,
+        password: userData.password,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        inviteToken: inviteToken,
+      }),
+    });
+  },
+  
+  getTripParticipants: async (tripId) => {
+    return await apiFetch(`/trips/${tripId}/participants`);
+  },
+};
+
+// Stops API
+export const StopsAPI = {
+  addStopToTrip: async (tripId, stopData) => {
+    return await apiFetch(`/trips/${tripId}/stops`, {
+      method: 'POST',
+      body: JSON.stringify(stopData),
+    });
+  },
+  
+  getAllStops: async (tripId) => {
+    return await apiFetch(`/trips/${tripId}/stops`);
+  },
+  
+  voteOnStop: async (stopId, voteType) => {
+    return await apiFetch(`/stops/${stopId}/vote`, {
+      method: 'POST',
+      body: JSON.stringify({ voteType }),
+    });
+  },
+  
+  reorderStops: async (tripId, stopIds) => {
+    return await apiFetch(`/trips/${tripId}/stops/reorder`, {
+      method: 'POST',
+      body: JSON.stringify({ stopIds }),
+    });
+  },
+  
+  deleteStop: async (stopId) => {
+  return await apiFetch(`/stops/${stopId}`, {
+    method: 'DELETE',
+  });
+},
 };

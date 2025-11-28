@@ -2,12 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Plus, Trash2, Check, MapPin, Users, ClipboardList, Share2, Copy, X, GripVertical, ThumbsUp, ThumbsDown, Calendar, DollarSign, Menu } from 'lucide-react';
 import { InteractiveMapComponent } from './InteractiveMapComponent';
 import TripCreationAutocomplete from './TripCreationAutocomplete';
-import LoginAuth from './LoginAuth';
 import ExpenseTab from './ExpenseTab';
 import ItineraryTab from './ItineraryTab';
 import ProfileComponent from './ProfileComponent';
 import TaskTab from './TaskTab';
-import { TripsAPI, AuthAPI } from './apiService';
+import { TripsAPI, AuthAPI, InviteAPI, StopsAPI } from './apiService';
 
 export default function TravelPlanner({ userData, onLogoutToHome }) {
   const [currentTab, setCurrentTab] = useState('map');
@@ -31,6 +30,42 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
       fetchUserAndTrips();
     }
   }, [userData]);
+  useEffect(() => {
+    if (currentTrip) {
+      loadStopsForTrip(currentTrip.id);
+    }
+  }, [currentTrip]);
+
+  const loadStopsForTrip = async (tripId) => {
+    try {
+      const stops = await StopsAPI.getAllStops(tripId);
+
+      console.log('Loading stops for trip', tripId, ':', stops);
+
+      // Transform backend stops to customPins format
+      const transformedPins = stops.map(stop => ({
+        id: Number(stop.id), // Ensure ID is a number
+        name: stop.customName || stop.placeName,
+        description: stop.description || '',
+        address: stop.fullAddress,
+        lat: parseFloat(stop.latitude),
+        lng: parseFloat(stop.longitude),
+        addedBy: stop.createdBy ? `${stop.createdBy.firstName} ${stop.createdBy.lastName}` : 'Unknown',
+        addedById: stop.createdBy?.id,
+        likes: stop.votes?.filter(v => v.voteType === 'LIKE').map(v => `${v.user.firstName} ${v.user.lastName}`) || [],
+        dislikes: stop.votes?.filter(v => v.voteType === 'DISLIKE').map(v => `${v.user.firstName} ${v.user.lastName}`) || [],
+      }));
+
+      console.log('Transformed pins:', transformedPins);
+
+      setCustomPins({
+        ...customPins,
+        [tripId]: transformedPins,
+      });
+    } catch (error) {
+      console.error('Error loading stops:', error);
+    }
+  };
 
   const fetchUserAndTrips = async () => {
     setLoading(true);
@@ -45,100 +80,164 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
       });
 
       const tripsData = await TripsAPI.getAllTrips();
+      console.log('Raw trips data from backend:', tripsData);
+      const transformedTrips = tripsData.map(trip => {
+        // Parse coordinates from backend
+        const startCoords = trip.startLatitude && trip.startLongitude
+          ? [parseFloat(trip.startLongitude), parseFloat(trip.startLatitude)]
+          : null;
 
-      const transformedTrips = tripsData.map(trip => ({
-        id: trip.id,
-        name: trip.name,
-        description: trip.description,
-        destination: trip.destination,
-        startDate: trip.startDate,
-        endDate: trip.endDate,
-        startPoint: trip.startPoint || '',
-        start: trip.startPoint || '',
-        createdBy: trip.createdBy,
-        members: [trip.createdBy ? `${trip.createdBy.firstName} ${trip.createdBy.lastName}` : 'Unknown'],
-        shareCode: Math.random().toString(36).substr(2, 9).toUpperCase(),
-        places: [],
-        tasks: [],
-        createdAt: trip.createdAt,
-        updatedAt: trip.updatedAt
-      }));
+        const destCoords = trip.destinationLatitude && trip.destinationLongitude
+          ? [parseFloat(trip.destinationLongitude), parseFloat(trip.destinationLatitude)]
+          : null;
 
+        console.log(`Trip "${trip.name}" coordinates:`, { startCoords, destCoords });
+        console.log(`Trip "${trip.name}" startPoint:`, trip.startingPoint); // ADD THIS LINE
+
+
+        return {
+          id: trip.id,
+          name: trip.name,
+          description: trip.description,
+          destination: trip.destination,
+          startingPoint: trip.startingPoint || '',
+          startDate: trip.startDate,
+          endDate: trip.endDate,
+          startPoint: trip.startingPoint || '',
+          start: trip.startingPoint || '',
+          startCoords: startCoords,
+          destCoords: destCoords,
+          createdBy: trip.createdBy,
+          members: [trip.createdBy ? `${trip.createdBy.firstName} ${trip.createdBy.lastName}` : 'Unknown'],
+          shareCode: Math.random().toString(36).substr(2, 9).toUpperCase(),
+          places: [],
+          tasks: [],
+          createdAt: trip.createdAt,
+          updatedAt: trip.updatedAt
+        };
+      });
       setTrips(transformedTrips);
-      console.log('Fetched trips:', transformedTrips);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
   };
+  console.log('fetched trips:', trips);
 
-  const voteForPin = (pinId, voteType) => {
+
+  const addCustomPin = async (pin) => {
     if (currentTrip && currentUser) {
-      const pins = customPins[currentTrip.id] || [];
-      const updatedPins = pins.map(pin => {
-        if (pin.id === pinId) {
-          const likes = pin.likes || [];
-          const dislikes = pin.dislikes || [];
-          const hasLiked = likes.includes(currentUser.name);
-          const hasDisliked = dislikes.includes(currentUser.name);
+      try {
+        const stopData = {
+          placeName: pin.name,
+          fullAddress: pin.address,
+          customName: pin.name,
+          description: pin.description || '',
+          latitude: pin.lat,
+          longitude: pin.lng,
+        };
 
-          if (voteType === 'like') {
-            if (hasLiked) {
-              return {
-                ...pin,
-                likes: likes.filter(user => user !== currentUser.name)
-              };
-            } else {
-              return {
-                ...pin,
-                likes: [...likes, currentUser.name],
-                dislikes: dislikes.filter(user => user !== currentUser.name)
-              };
-            }
-          } else if (voteType === 'dislike') {
-            if (hasDisliked) {
-              return {
-                ...pin,
-                dislikes: dislikes.filter(user => user !== currentUser.name)
-              };
-            } else {
-              return {
-                ...pin,
-                dislikes: [...dislikes, currentUser.name],
-                likes: likes.filter(user => user !== currentUser.name)
-              };
-            }
-          }
-        }
-        return pin;
-      });
+        const createdStop = await StopsAPI.addStopToTrip(currentTrip.id, stopData);
 
-      setCustomPins({
-        ...customPins,
-        [currentTrip.id]: updatedPins,
-      });
+        // Reload stops to get fresh data from backend
+        await loadStopsForTrip(currentTrip.id);
+      } catch (error) {
+        console.error('Error adding stop:', error);
+        alert('Failed to add stop. Please try again.');
+      }
     }
   };
 
-  const addCustomPin = (pin) => {
-    if (currentTrip && currentUser) {
-      const pins = customPins[currentTrip.id] || [];
-      setCustomPins({
-        ...customPins,
-        [currentTrip.id]: [...pins, { ...pin, likes: [], dislikes: [] }],
-      });
-    }
-  };
-
-  const deleteCustomPin = (pinId) => {
+  // Update deleteCustomPin function
+  const deleteCustomPin = async (pinId) => {
     if (currentTrip) {
-      const pins = customPins[currentTrip.id] || [];
-      setCustomPins({
-        ...customPins,
-        [currentTrip.id]: pins.filter(p => p.id !== pinId),
-      });
+      try {
+        await StopsAPI.deleteStop(pinId);
+
+        // Reload stops after deletion
+        await loadStopsForTrip(currentTrip.id);
+      } catch (error) {
+        console.error('Error deleting stop:', error);
+        alert('Failed to delete stop. Please try again.');
+      }
     }
+  };
+
+  const voteForPin = async (pinId, voteType) => {
+    if (currentTrip && currentUser) {
+      try {
+        // Send vote to backend (LIKE or DISLIKE)
+        await StopsAPI.voteOnStop(pinId, voteType.toUpperCase());
+
+        // Reload stops to get updated votes
+        await loadStopsForTrip(currentTrip.id);
+      } catch (error) {
+        console.error('Error voting on stop:', error);
+        alert('Failed to vote on stop. Please try again.');
+      }
+    }
+  };
+
+  const handleDrop = async (e, dropIndex) => {
+    e.preventDefault();
+    if (draggedPin === null || draggedPin === dropIndex) {
+      setDraggedPin(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    if (currentTrip) {
+      try {
+        const currentPins = customPins[currentTrip.id] || [];
+
+        // Validate that we have stops with IDs
+        if (!currentPins.length || !currentPins.every(pin => pin.id)) {
+          console.error('Invalid stops - missing IDs');
+          alert('Cannot reorder: stops are missing IDs');
+          return;
+        }
+
+        const newPins = [...currentPins];
+        const [movedPin] = newPins.splice(draggedPin, 1);
+        newPins.splice(dropIndex, 0, movedPin);
+
+        // Get the new order of stop IDs - ensure they're numbers
+        const stopIds = newPins.map(pin => Number(pin.id)).filter(id => !isNaN(id));
+
+        // Debug logs
+        console.log('Trip ID:', currentTrip.id);
+        console.log('Reordering stops:', stopIds);
+        console.log('Request payload:', JSON.stringify({ stopIds }));
+
+        if (stopIds.length === 0) {
+          console.error('No valid stop IDs to reorder');
+          return;
+        }
+
+        // Send reorder request to backend
+        await StopsAPI.reorderStops(currentTrip.id, stopIds);
+        console.log('✅ Reorder successful');
+
+        // Update local state
+        setCustomPins({
+          ...customPins,
+          [currentTrip.id]: newPins,
+        });
+
+        setMapKey(prev => prev + 1);
+      } catch (error) {
+        console.error('❌ Error reordering stops:', error);
+        console.error('Error details:', error.message);
+        alert('Failed to reorder stops: ' + (error.message || 'Unknown error'));
+
+        // Reload stops to restore correct order
+        await loadStopsForTrip(currentTrip.id);
+      }
+    }
+
+    setDraggedPin(null);
+    setDragOverIndex(null);
   };
 
   const updateCustomPin = (index, updatedPin) => {
@@ -172,37 +271,6 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
     setDragOverIndex(null);
   };
 
-  const handleDrop = (e, dropIndex) => {
-    e.preventDefault();
-    if (draggedPin === null || draggedPin === dropIndex) {
-      setDraggedPin(null);
-      setDragOverIndex(null);
-      return;
-    }
-
-    if (currentTrip) {
-      const currentPins = customPins[currentTrip.id] || [];
-      const newPins = [...currentPins];
-      const [movedPin] = newPins.splice(draggedPin, 1);
-      newPins.splice(dropIndex, 0, movedPin);
-
-      const reorderedPins = newPins.map(pin => ({
-        ...pin,
-        x: undefined,
-        y: undefined
-      }));
-
-      setCustomPins({
-        ...customPins,
-        [currentTrip.id]: reorderedPins,
-      });
-
-      setMapKey(prev => prev + 1);
-    }
-
-    setDraggedPin(null);
-    setDragOverIndex(null);
-  };
 
   useEffect(() => {
     console.log('CustomPins updated in map:', customPins);
@@ -243,10 +311,30 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
     }
   };
 
-  const generateShareLink = () => {
+  const generateShareLink = async () => {
     if (currentTrip) {
-      const link = `${window.location.origin}?trip=${currentTrip.shareCode}`;
-      setShareLink(link);
+      try {
+        // This will now call POST /api/trips/{tripId}/invites to create a new invite
+        const response = await InviteAPI.generateInviteLink(currentTrip.id);
+
+        console.log('Invite created:', response);
+
+        // The response should be InviteResponse object with token field
+        const inviteToken = response.token || response.inviteToken;
+
+        if (!inviteToken) {
+          console.error('No token in response:', response);
+          alert('Failed to generate invite link');
+          return;
+        }
+
+        // Create a registration link with the invite token
+        const link = `${window.location.origin}/?invite=${inviteToken}`;
+        setShareLink(link);
+      } catch (error) {
+        console.error('Error generating invite link:', error);
+        alert('Failed to generate invite link: ' + error.message);
+      }
     }
   };
 
@@ -347,7 +435,10 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
                 }
               }}
               existingTrips={trips}
-              onSelectTrip={setCurrentTrip}
+              onSelectTrip={(trip) => {
+                setCurrentTrip(trip);
+                // Stops will be loaded by the useEffect
+              }}
               currentUser={currentUser}
               userEmail={currentUser?.email}
               onTripsUpdate={fetchUserAndTrips}
@@ -366,9 +457,9 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
                     <div className="flex-1">
                       <h2 className="text-2xl font-bold text-gray-900 mb-2">{currentTrip.name}</h2>
                       <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600 mb-2">
-                        {currentTrip.startPoint && (
+                        {(currentTrip.startPoint || currentTrip.start) && (
                           <>
-                            <span className="font-medium text-gray-900">{currentTrip.startPoint}</span>
+                            <span className="font-medium text-gray-900">{currentTrip.startPoint || currentTrip.start}</span>
                             <span className="text-gray-400">→</span>
                           </>
                         )}
@@ -530,8 +621,8 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
                 <button
                   onClick={() => setCurrentTab('map')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap transition ${currentTab === 'map'
-                      ? 'border-indigo-600 text-indigo-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-indigo-600 text-indigo-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                 >
                   <MapPin className="inline mr-2" size={16} />
@@ -540,8 +631,8 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
                 <button
                   onClick={() => setCurrentTab('tasks')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap transition ${currentTab === 'tasks'
-                      ? 'border-indigo-600 text-indigo-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-indigo-600 text-indigo-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                 >
                   <ClipboardList className="inline mr-2" size={16} />
@@ -550,8 +641,8 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
                 <button
                   onClick={() => setCurrentTab('expenses')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap transition ${currentTab === 'expenses'
-                      ? 'border-indigo-600 text-indigo-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-indigo-600 text-indigo-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                 >
                   <DollarSign className="inline mr-2" size={16} />
@@ -560,8 +651,8 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
                 <button
                   onClick={() => setCurrentTab('itinerary')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap transition ${currentTab === 'itinerary'
-                      ? 'border-indigo-600 text-indigo-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-indigo-600 text-indigo-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                 >
                   <Calendar className="inline mr-2" size={16} />
@@ -581,13 +672,10 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
                       Places
                     </h3>
 
-                    {/* Route Info */}
-                    {currentTrip.startPoint && (
-                      <div className="p-3 bg-green-50 border border-green-200 rounded-lg mb-3">
-                        <p className="text-xs font-medium text-green-700 mb-1">START</p>
-                        <p className="text-sm font-semibold text-gray-900">{currentTrip.startPoint}</p>
-                      </div>
-                    )}
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg mt-3">
+                      <p className="text-xs font-medium text-green-700 mb-1">START POINT</p>
+                      <p className="text-sm font-semibold text-gray-900">{currentTrip.startingPoint}</p>
+                    </div>
 
                     {/* Custom Pins Section - Draggable */}
                     {(customPins[currentTrip.id] || []).length > 0 && (
@@ -613,15 +701,13 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
                                   )}
                                 </div>
                               </div>
-                              {currentUser?.name === pin.addedBy && (
-                                <button
-                                  onClick={() => deleteCustomPin(pin.id)}
-                                  className="text-gray-400 hover:text-red-600 rounded p-1 transition"
-                                  title="Delete pin"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              )}
+                              <button
+                                onClick={() => deleteCustomPin(pin.id)}
+                                className="text-gray-400 hover:text-red-600 rounded p-1 transition"
+                                title="Delete pin"
+                              >
+                                <Trash2 size={14} />
+                              </button>
                             </div>
 
                             {/* Vote Buttons */}
@@ -629,8 +715,8 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
                               <button
                                 onClick={() => voteForPin(pin.id, 'like')}
                                 className={`flex-1 px-2 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs font-medium ${(pin.likes || []).includes(currentUser?.name)
-                                    ? 'bg-green-500 text-white'
-                                    : 'bg-white border border-gray-200 text-gray-700 hover:border-green-400 hover:bg-green-50'
+                                  ? 'bg-green-500 text-white'
+                                  : 'bg-white border border-gray-200 text-gray-700 hover:border-green-400 hover:bg-green-50'
                                   }`}
                               >
                                 <ThumbsUp size={12} />
@@ -639,8 +725,8 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
                               <button
                                 onClick={() => voteForPin(pin.id, 'dislike')}
                                 className={`flex-1 px-2 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs font-medium ${(pin.dislikes || []).includes(currentUser?.name)
-                                    ? 'bg-red-500 text-white'
-                                    : 'bg-white border border-gray-200 text-gray-700 hover:border-red-400 hover:bg-red-50'
+                                  ? 'bg-red-500 text-white'
+                                  : 'bg-white border border-gray-200 text-gray-700 hover:border-red-400 hover:bg-red-50'
                                   }`}
                               >
                                 <ThumbsDown size={12} />

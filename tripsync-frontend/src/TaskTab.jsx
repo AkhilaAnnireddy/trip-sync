@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, GripVertical, CheckCircle2, Clock, ClipboardList } from 'lucide-react';
-import { TasksAPI } from './apiService';
+import { Plus, Trash2, GripVertical, CheckCircle2, Clock, ClipboardList, Users } from 'lucide-react';
+import { TasksAPI, InviteAPI } from './apiService';
 
 export default function TaskTab({ currentTrip, setCurrentTrip, trips, setTrips }) {
   const [tasks, setTasks] = useState([]);
@@ -8,6 +8,7 @@ export default function TaskTab({ currentTrip, setCurrentTrip, trips, setTrips }
   const [newDescription, setNewDescription] = useState('');
   const [newAssignee, setNewAssignee] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(false);
   const [draggedTask, setDraggedTask] = useState(null);
   const [dragOverColumn, setDragOverColumn] = useState(null);
@@ -15,6 +16,7 @@ export default function TaskTab({ currentTrip, setCurrentTrip, trips, setTrips }
   useEffect(() => {
     if (currentTrip?.id) {
       loadTasks();
+      loadParticipants();
     }
   }, [currentTrip?.id]);
 
@@ -29,30 +31,48 @@ export default function TaskTab({ currentTrip, setCurrentTrip, trips, setTrips }
       setLoading(false);
     }
   };
+const loadParticipants = async () => {
+  try {
+    // Use trip members from currentTrip if available
+    if (currentTrip?.members) {
+      // For now, we'll create a simple participant list from members
+      // This is a temporary solution until the backend endpoint is ready
+      const participantList = currentTrip.members.map((member, index) => ({
+        id: index + 1, // Temporary ID
+        firstName: member.split(' ')[0] || member,
+        lastName: member.split(' ').slice(1).join(' ') || ''
+      }));
+      setParticipants(participantList);
+    }
+  } catch (error) {
+    console.error('Error loading participants:', error);
+  }
+};
 
   const addTask = async () => {
-    if (currentTrip && newTask) {
-      try {
-        const taskData = {
-          title: newTask,
-          description: newDescription || newTask,
-          status: 'TODO',
-          dueDate: dueDate || null
-        };
+  if (currentTrip && newTask) {
+    try {
+      const taskData = {
+        title: newTask,
+        description: newDescription || newTask,
+        status: 'TODO',
+        assignedToId: newAssignee ? parseInt(newAssignee) : null,
+        dueDate: dueDate || null
+      };
 
-        const createdTask = await TasksAPI.createTask(currentTrip.id, taskData);
-        setTasks([...tasks, createdTask]);
-        
-        setNewTask('');
-        setNewDescription('');
-        setNewAssignee('');
-        setDueDate('');
-      } catch (error) {
-        console.error('Error creating task:', error);
-        alert('Failed to create task. Please try again.');
-      }
+      const createdTask = await TasksAPI.createTask(currentTrip.id, taskData);
+      setTasks([...tasks, createdTask]);
+      
+      setNewTask('');
+      setNewDescription('');
+      setNewAssignee('');
+      setDueDate('');
+    } catch (error) {
+      console.error('Error creating task:', error);
+      alert('Failed to create task. Please try again.');
     }
-  };
+  }
+};
 
   const deleteTask = async (taskId) => {
     try {
@@ -179,52 +199,68 @@ export default function TaskTab({ currentTrip, setCurrentTrip, trips, setTrips }
       </div>
 
       {/* Add Task Widget */}
-      <div className="bg-white rounded-lg border border-gray-200 p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="bg-indigo-100 rounded-lg p-2">
-            <Plus className="text-indigo-600" size={18} />
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900">Add New Task</h3>
-        </div>
-        
-        <div className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <input
-              type="text"
-              placeholder="Task title *"
-              value={newTask}
-              onChange={(e) => setNewTask(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && newTask && addTask()}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-            />
-            <input
-              type="date"
-              placeholder="Due date (optional)"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-            />
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <input
-              type="text"
-              placeholder="Description (optional)"
-              value={newDescription}
-              onChange={(e) => setNewDescription(e.target.value)}
-              className="md:col-span-3 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-            />
-            <button
-              onClick={addTask}
-              disabled={!newTask}
-              className="bg-indigo-600 text-white py-2 rounded-lg font-medium text-sm hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
-            >
-              <Plus size={18} />
-              Add Task
-            </button>
-          </div>
-        </div>
-      </div>
+<div className="bg-white rounded-lg border border-gray-200 p-5">
+  <div className="flex items-center gap-2 mb-4">
+    <div className="bg-indigo-100 rounded-lg p-2">
+      <Plus className="text-indigo-600" size={18} />
+    </div>
+    <h3 className="text-lg font-semibold text-gray-900">Add New Task</h3>
+  </div>
+  
+  <div className="space-y-3">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <input
+        type="text"
+        placeholder="Task title *"
+        value={newTask}
+        onChange={(e) => setNewTask(e.target.value)}
+        onKeyPress={(e) => e.key === 'Enter' && newTask && addTask()}
+        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+      />
+      
+      {/* Assignee Dropdown */}
+      <select
+        value={newAssignee}
+        onChange={(e) => setNewAssignee(e.target.value)}
+        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+      >
+        <option value="">Assign to (optional)</option>
+        {participants.map((participant) => (
+          <option key={participant.id} value={participant.id}>
+            {participant.firstName} {participant.lastName}
+          </option>
+        ))}
+      </select>
+      
+      <input
+        type="date"
+        placeholder="Due date (optional)"
+        value={dueDate}
+        onChange={(e) => setDueDate(e.target.value)}
+        min={new Date().toISOString().split('T')[0]}
+        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+      />
+    </div>
+    
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <input
+        type="text"
+        placeholder="Description (optional)"
+        value={newDescription}
+        onChange={(e) => setNewDescription(e.target.value)}
+        className="md:col-span-3 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+      />
+      <button
+        onClick={addTask}
+        disabled={!newTask}
+        className="bg-indigo-600 text-white py-2 rounded-lg font-medium text-sm hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
+      >
+        <Plus size={18} />
+        Add Task
+      </button>
+    </div>
+  </div>
+</div>
 
       {/* Kanban Board - 3 Columns */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -276,6 +312,14 @@ export default function TaskTab({ currentTrip, setCurrentTrip, trips, setTrips }
                       {task.description && task.description !== task.title && (
                         <p className="text-xs text-gray-600 mb-2">{task.description}</p>
                       )}
+                      {task.assignedTo && (
+  <div className="flex items-center gap-1.5 mb-2">
+    <Users size={10} className="text-gray-500" />
+    <span className="text-xs text-gray-600">
+      {task.assignedTo.firstName} {task.assignedTo.lastName}
+    </span>
+  </div>
+)}
                       {task.dueDate && (
                         <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full inline-block">
                           {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}

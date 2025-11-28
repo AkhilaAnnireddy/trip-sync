@@ -59,7 +59,8 @@ export const InteractiveMapComponent = ({
   }, []);
 
   useEffect(() => {
-    if (!mapRef.current || !startCoordinates || !destCoordinates) return;
+    if (!mapRef.current) return;
+  if (!startCoordinates && !destCoordinates) return;
 
     if (startMarkerRef.current) startMarkerRef.current.remove();
     if (destMarkerRef.current) destMarkerRef.current.remove();
@@ -149,14 +150,22 @@ export const InteractiveMapComponent = ({
       .addTo(mapRef.current);
 
     const bounds = new window.mapboxgl.LngLatBounds();
-    bounds.extend(startCoordinates);
-    bounds.extend(destCoordinates);
 
-    customPins.forEach(pin => {
-      bounds.extend([pin.lng, pin.lat]);
-    });
+if (startCoordinates) {
+  bounds.extend(startCoordinates);
+}
+if (destCoordinates) {
+  bounds.extend(destCoordinates);
+}
 
-    mapRef.current.fitBounds(bounds, { padding: 100 });
+customPins.forEach(pin => {
+  bounds.extend([pin.lng, pin.lat]);
+});
+
+// Only fit bounds if we have at least one coordinate
+if (startCoordinates || destCoordinates || customPins.length > 0) {
+  mapRef.current.fitBounds(bounds, { padding: 100 });
+}
 
   }, [startCoordinates, destCoordinates, startPoint, destination]);
 
@@ -235,91 +244,91 @@ export const InteractiveMapComponent = ({
     }
   }, [pinsKey, startCoordinates, destCoordinates]);
 
-  useEffect(() => {
-    if (!mapRef.current || !startCoordinates || !destCoordinates) return;
+useEffect(() => {
+  if (!mapRef.current) return;
+  
+  const map = mapRef.current;
 
-    const map = mapRef.current;
-
-    const addRouteLines = () => {
-      try {
-        if (map.getLayer('route-line')) {
-          map.removeLayer('route-line');
-        }
-        if (map.getLayer('route-arrows')) {
-          map.removeLayer('route-arrows');
-        }
-        if (map.getSource('route')) {
-          map.removeSource('route');
-        }
-        if (map.getSource('route-arrows')) {
-          map.removeSource('route-arrows');
-        }
-
-        const routeCoordinates = [
-          startCoordinates,
-          ...customPins.map(pin => [pin.lng, pin.lat]),
-          destCoordinates
-        ];
-
-        map.addSource('route', {
-          type: 'geojson',
-          data: {
-            type: 'Feature',
-            properties: {},
-            geometry: {
-              type: 'LineString',
-              coordinates: routeCoordinates
-            }
-          }
-        });
-
-        map.addLayer({
-          id: 'route-line',
-          type: 'line',
-          source: 'route',
-          layout: {
-            'line-join': 'round',
-            'line-cap': 'round'
-          },
-          paint: {
-            'line-color': '#6366f1',
-            'line-width': 4,
-            'line-opacity': 0.8,
-            
-          }
-        });
-
-        map.triggerRepaint();
-
-      } catch (error) {
-        console.error('Error adding route lines:', error);
+  const addRouteLines = () => {
+    try {
+      // Remove existing layers and sources
+      if (map.getLayer('route-line')) {
+        map.removeLayer('route-line');
       }
-    };
+      if (map.getSource('route')) {
+        map.removeSource('route');
+      }
 
-    if (!map.isStyleLoaded()) {
-      map.once('style.load', addRouteLines);
-    } else {
-      setTimeout(addRouteLines, 100);
+      // Build route coordinates - filter out any null/undefined
+      const routeCoordinates = [
+        startCoordinates,
+        ...customPins.map(pin => [pin.lng, pin.lat]),
+        destCoordinates
+      ].filter(coord => coord && coord.length === 2);
+
+      // Only draw if we have at least 2 points
+      if (routeCoordinates.length < 2) {
+        console.log('Not enough coordinates to draw route');
+        return;
+      }
+
+      console.log('Drawing route with coordinates:', routeCoordinates);
+
+      map.addSource('route', {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'LineString',
+            coordinates: routeCoordinates
+          }
+        }
+      });
+
+      map.addLayer({
+        id: 'route-line',
+        type: 'line',
+        source: 'route',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        paint: {
+          'line-color': '#6366f1',
+          'line-width': 5,
+          'line-opacity': 0.9
+        }
+      });
+
+      console.log('✅ Route line added successfully');
+
+    } catch (error) {
+      console.error('❌ Error adding route lines:', error);
     }
+  };
 
-    return () => {
-      try {
-        if (map.getLayer('route-line')) {
-          map.removeLayer('route-line');
-        }
-        if (map.getLayer('route-arrows')) {
-          map.removeLayer('route-arrows');
-        }
-        if (map.getSource('route')) {
-          map.removeSource('route');
-        }
-        if (map.getSource('route-arrows')) {
-          map.removeSource('route-arrows');
-        }
-      } catch (error) {
+  if (!map.isStyleLoaded()) {
+    map.once('load', () => {
+      setTimeout(addRouteLines, 200);
+    });
+  } else {
+    setTimeout(addRouteLines, 200);
+  }
+
+  return () => {
+    try {
+      if (map.getLayer('route-line')) {
+        map.removeLayer('route-line');
       }
-    };
-  }, [startCoordinates, destCoordinates, pinsKey]);
+      if (map.getSource('route')) {
+        map.removeSource('route');
+      }
+    } catch (error) {
+      // Ignore cleanup errors
+    }
+  };
+}, [startCoordinates, destCoordinates, pinsKey]);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
