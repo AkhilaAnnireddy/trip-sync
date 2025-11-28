@@ -44,16 +44,17 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
 
       // Transform backend stops to customPins format
       const transformedPins = stops.map(stop => ({
-        id: Number(stop.id), // Ensure ID is a number
+        id: Number(stop.id),
         name: stop.customName || stop.placeName,
         description: stop.description || '',
         address: stop.fullAddress,
         lat: parseFloat(stop.latitude),
         lng: parseFloat(stop.longitude),
-        addedBy: stop.createdBy ? `${stop.createdBy.firstName} ${stop.createdBy.lastName}` : 'Unknown',
-        addedById: stop.createdBy?.id,
-        likes: stop.votes?.filter(v => v.voteType === 'LIKE').map(v => `${v.user.firstName} ${v.user.lastName}`) || [],
-        dislikes: stop.votes?.filter(v => v.voteType === 'DISLIKE').map(v => `${v.user.firstName} ${v.user.lastName}`) || [],
+        addedBy: stop.addedBy ? `${stop.addedBy.firstName} ${stop.addedBy.lastName}` : 'Unknown',
+        addedById: stop.addedBy?.id,
+        likesCount: stop.likesCount || 0,
+        dislikesCount: stop.dislikesCount || 0,
+        currentUserVote: stop.currentUserVote || null,
       }));
 
       console.log('Transformed pins:', transformedPins);
@@ -92,7 +93,7 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
           : null;
 
         console.log(`Trip "${trip.name}" coordinates:`, { startCoords, destCoords });
-        console.log(`Trip "${trip.name}" startPoint:`, trip.startingPoint); // ADD THIS LINE
+        console.log(`Trip "${trip.name}" startPoint:`, trip.startingPoint); 
 
 
         return {
@@ -140,7 +141,6 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
 
         const createdStop = await StopsAPI.addStopToTrip(currentTrip.id, stopData);
 
-        // Reload stops to get fresh data from backend
         await loadStopsForTrip(currentTrip.id);
       } catch (error) {
         console.error('Error adding stop:', error);
@@ -149,7 +149,6 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
     }
   };
 
-  // Update deleteCustomPin function
   const deleteCustomPin = async (pinId) => {
     if (currentTrip) {
       try {
@@ -191,7 +190,6 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
       try {
         const currentPins = customPins[currentTrip.id] || [];
 
-        // Validate that we have stops with IDs
         if (!currentPins.length || !currentPins.every(pin => pin.id)) {
           console.error('Invalid stops - missing IDs');
           alert('Cannot reorder: stops are missing IDs');
@@ -202,13 +200,8 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
         const [movedPin] = newPins.splice(draggedPin, 1);
         newPins.splice(dropIndex, 0, movedPin);
 
-        // Get the new order of stop IDs - ensure they're numbers
         const stopIds = newPins.map(pin => Number(pin.id)).filter(id => !isNaN(id));
 
-        // Debug logs
-        console.log('Trip ID:', currentTrip.id);
-        console.log('Reordering stops:', stopIds);
-        console.log('Request payload:', JSON.stringify({ stopIds }));
 
         if (stopIds.length === 0) {
           console.error('No valid stop IDs to reorder');
@@ -672,10 +665,14 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
                       Places
                     </h3>
 
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg mt-3">
-                      <p className="text-xs font-medium text-green-700 mb-1">START POINT</p>
-                      <p className="text-sm font-semibold text-gray-900">{currentTrip.startingPoint}</p>
-                    </div>
+                    {(currentTrip.startingPoint || currentTrip.startPoint || currentTrip.start) && (
+                      <div className="p-3 bg-green-50 border border-green-200 rounded-lg mb-3">
+                        <p className="text-xs font-medium text-green-700 mb-1">START POINT</p>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {currentTrip.startingPoint || currentTrip.startPoint || currentTrip.start}
+                        </p>
+                      </div>
+                    )}
 
                     {/* Custom Pins Section - Draggable */}
                     {(customPins[currentTrip.id] || []).length > 0 && (
@@ -710,43 +707,42 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
                               </button>
                             </div>
 
-                            {/* Vote Buttons */}
                             <div className="flex gap-2 mb-2">
                               <button
                                 onClick={() => voteForPin(pin.id, 'like')}
-                                className={`flex-1 px-2 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs font-medium ${(pin.likes || []).includes(currentUser?.name)
+                                className={`flex-1 px-2 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs font-medium ${pin.currentUserVote === 'LIKE'
                                   ? 'bg-green-500 text-white'
                                   : 'bg-white border border-gray-200 text-gray-700 hover:border-green-400 hover:bg-green-50'
                                   }`}
                               >
                                 <ThumbsUp size={12} />
-                                <span>{(pin.likes || []).length}</span>
+                                <span>{pin.likesCount || 0}</span>
                               </button>
                               <button
                                 onClick={() => voteForPin(pin.id, 'dislike')}
-                                className={`flex-1 px-2 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs font-medium ${(pin.dislikes || []).includes(currentUser?.name)
+                                className={`flex-1 px-2 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs font-medium ${pin.currentUserVote === 'DISLIKE'
                                   ? 'bg-red-500 text-white'
                                   : 'bg-white border border-gray-200 text-gray-700 hover:border-red-400 hover:bg-red-50'
                                   }`}
                               >
                                 <ThumbsDown size={12} />
-                                <span>{(pin.dislikes || []).length}</span>
+                                <span>{pin.dislikesCount || 0}</span>
                               </button>
                             </div>
 
                             <div className="text-gray-600 border-t border-purple-200 pt-2 space-y-1">
                               <p className="text-xs">Added by: <span className="font-medium">{pin.addedBy}</span></p>
                               <p className="text-xs text-gray-500">{pin.address}</p>
-                              {((pin.likes || []).length > 0 || (pin.dislikes || []).length > 0) && (
+                              {(pin.likesCount > 0 || pin.dislikesCount > 0) && (
                                 <div className="mt-2 text-xs space-y-1">
-                                  {(pin.likes || []).length > 0 && (
+                                  {pin.likesCount > 0 && (
                                     <p className="text-green-600">
-                                      Liked by: {(pin.likes || []).join(', ')}
+                                      👍 {pin.likesCount} {pin.likesCount === 1 ? 'like' : 'likes'}
                                     </p>
                                   )}
-                                  {(pin.dislikes || []).length > 0 && (
+                                  {pin.dislikesCount > 0 && (
                                     <p className="text-red-600">
-                                      Disliked by: {(pin.dislikes || []).join(', ')}
+                                      👎 {pin.dislikesCount} {pin.dislikesCount === 1 ? 'dislike' : 'dislikes'}
                                     </p>
                                   )}
                                 </div>

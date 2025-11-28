@@ -106,13 +106,17 @@ export default function EditTripModal({ trip, onClose, onUpdate }) {
     
     // Validation
     if (!tripName.trim()) {
-      setError('Please enter a trip name');
-      return;
-    }
-    if (!tripDest.trim()) {
-      setError('Please enter a destination');
-      return;
-    }
+  setError('Please enter a trip name');
+  return;
+}
+if (!tripStart.trim()) {
+  setError('Please enter a starting point');
+  return;
+}
+if (!tripDest.trim()) {
+  setError('Please enter a destination');
+  return;
+}
     if (!startDate) {
       setError('Please select a start date');
       return;
@@ -130,12 +134,18 @@ export default function EditTripModal({ trip, onClose, onUpdate }) {
 
     try {
       const updateData = {
-        name: tripName,
-        description: tripDescription,
-        destination: tripDest,
-        startDate: startDate,
-        endDate: endDate
-      };
+  name: tripName,
+  description: tripDescription,
+  destination: tripDest,
+  startingPoint: tripStart,
+  startDate: startDate,
+  endDate: endDate,
+  // Add coordinates if available
+  startLatitude: startCoords ? startCoords[1] : null,
+  startLongitude: startCoords ? startCoords[0] : null,
+  destinationLatitude: destCoords ? destCoords[1] : null,
+  destinationLongitude: destCoords ? destCoords[0] : null,
+};
       
       // Pass both trip ID and update data to the parent handler
       await onUpdate(trip.id, updateData);
@@ -203,7 +213,7 @@ export default function EditTripModal({ trip, onClose, onUpdate }) {
           {/* Starting Point with Autocomplete */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Starting Point (Optional)
+              Starting Point *
             </label>
             <div className="relative">
               <input
@@ -380,7 +390,7 @@ export default function EditTripModal({ trip, onClose, onUpdate }) {
             </button>
             <button
               onClick={handleUpdateTrip}
-              disabled={updating || !tripName || !tripDest || !startDate || !endDate}
+              disabled={updating || !tripName || !tripStart || !tripDest || !startDate || !endDate}
               className="flex-1 bg-indigo-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-indigo-700 transition-all shadow-lg hover:shadow-xl disabled:bg-gray-300 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-3"
             >
               {updating ? (

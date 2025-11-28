@@ -198,8 +198,8 @@ export const InviteAPI = {
   },
   
   getTripParticipants: async (tripId) => {
-    return await apiFetch(`/trips/${tripId}/participants`);
-  },
+  return await apiFetch(`/api/trips/trips/${tripId}/participants`);
+},
 };
 
 // Stops API

@@ -198,7 +198,7 @@ const loadParticipants = async () => {
         </div>
       </div>
 
-      {/* Add Task Widget */}
+
 <div className="bg-white rounded-lg border border-gray-200 p-5">
   <div className="flex items-center gap-2 mb-4">
     <div className="bg-indigo-100 rounded-lg p-2">

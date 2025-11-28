@@ -177,7 +177,6 @@ if (!newTripDest.trim()) {
         startingPoint: newTripStart || null,
         startDate: startDate,
         endDate: endDate,
-        // Add coordinates
         startLatitude: startCoords ? startCoords[1] : null,
         startLongitude: startCoords ? startCoords[0] : null,
         destinationLatitude: destCoords ? destCoords[1] : null,
