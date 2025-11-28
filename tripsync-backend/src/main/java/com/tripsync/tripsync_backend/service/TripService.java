@@ -2,6 +2,7 @@ package com.tripsync.tripsync_backend.service;
 
 import com.tripsync.tripsync_backend.dto.CreateTripRequest;
 import com.tripsync.tripsync_backend.dto.TripDTO;
+import com.tripsync.tripsync_backend.dto.UserDTO;
 
 import java.util.List;
 
@@ -20,4 +21,6 @@ public interface TripService {
     void addParticipant(Long tripId, String participantEmail, String userEmail);
 
     void removeParticipant(Long tripId, Long participantUserId, String userEmail);
+
+    List<UserDTO> getTripParticipants(Long tripId, String userEmail);
 }

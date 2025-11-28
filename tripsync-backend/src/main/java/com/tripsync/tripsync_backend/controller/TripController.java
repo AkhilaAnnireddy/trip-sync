@@ -2,6 +2,7 @@ package com.tripsync.tripsync_backend.controller;
 
 import com.tripsync.tripsync_backend.dto.CreateTripRequest;
 import com.tripsync.tripsync_backend.dto.TripDTO;
+import com.tripsync.tripsync_backend.dto.UserDTO;
 import com.tripsync.tripsync_backend.service.TripService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -70,5 +71,11 @@ public class TripController {
                                                   @PathVariable Long userId) {
         tripService.removeParticipant(id, userId, getCurrentUserEmail());
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/trips/{id}/participants")
+    public ResponseEntity<List<UserDTO>> getTripParticipants(@PathVariable Long id) {
+        List<UserDTO> participants = tripService.getTripParticipants(id, getCurrentUserEmail());
+        return ResponseEntity.ok(participants);
     }
 }

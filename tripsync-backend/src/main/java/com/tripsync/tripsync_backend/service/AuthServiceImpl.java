@@ -31,6 +31,9 @@ public class AuthServiceImpl implements AuthService {
     @Autowired
     private AuthenticationManager authenticationManager;
 
+    @Autowired
+    private TripInviteService tripInviteService; // Add this at the top with other @Autowired fields
+
     @Override
     public AuthResponse register(RegisterRequest request) {
         // Check if user already exists
@@ -46,6 +49,16 @@ public class AuthServiceImpl implements AuthService {
         user.setLastName(request.getLastName());
 
         User savedUser = userRepository.save(user);
+
+        // If invite token provided, accept the invite
+        if (request.getInviteToken() != null && !request.getInviteToken().isEmpty()) {
+            try {
+                tripInviteService.acceptInvite(request.getInviteToken(), savedUser.getEmail());
+            } catch (Exception e) {
+                // Log the error but don't fail registration
+                // User is registered but invite acceptance failed
+            }
+        }
 
         // Generate JWT token
         String token = jwtUtil.generateToken(savedUser.getEmail());
@@ -69,6 +82,16 @@ public class AuthServiceImpl implements AuthService {
         // Get user details
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", request.getEmail()));
+
+        // If invite token provided, accept the invite
+        if (request.getInviteToken() != null && !request.getInviteToken().isEmpty()) {
+            try {
+                tripInviteService.acceptInvite(request.getInviteToken(), user.getEmail());
+            } catch (Exception e) {
+                // Log the error but don't fail login
+                // User is logged in but invite acceptance failed
+            }
+        }
 
         // Generate JWT token
         String token = jwtUtil.generateToken(user.getEmail());

@@ -19,6 +19,8 @@ public class CreateTripRequest {
 
     private String destination;
 
+    private String startingPoint;
+
     private LocalDate startDate;
 
     private LocalDate endDate;

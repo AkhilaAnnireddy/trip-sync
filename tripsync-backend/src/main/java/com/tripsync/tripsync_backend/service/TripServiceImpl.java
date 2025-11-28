@@ -41,6 +41,7 @@ public class TripServiceImpl implements TripService {
         trip.setName(request.getName());
         trip.setDescription(request.getDescription());
         trip.setDestination(request.getDestination());
+        trip.setStartingPoint(request.getStartingPoint());
         trip.setStartDate(request.getStartDate());
         trip.setEndDate(request.getEndDate());
         trip.setCreatedBy(user);
@@ -101,6 +102,7 @@ public class TripServiceImpl implements TripService {
         trip.setName(request.getName());
         trip.setDescription(request.getDescription());
         trip.setDestination(request.getDestination());
+        trip.setStartingPoint(request.getStartingPoint());
         trip.setStartDate(request.getStartDate());
         trip.setEndDate(request.getEndDate());
 
@@ -207,5 +209,31 @@ public class TripServiceImpl implements TripService {
                 trip.getCreatedAt(),
                 trip.getUpdatedAt()
         );
+    }
+
+    @Override
+    public List<UserDTO> getTripParticipants(Long tripId, String userEmail) {
+        Trip trip = tripRepository.findById(tripId)
+                .orElseThrow(() -> new ResourceNotFoundException("Trip", "id", tripId));
+
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", userEmail));
+
+        // Check if user has access to this trip
+        if (!hasAccess(tripId, user.getId())) {
+            throw new UnauthorizedException("Access denied");
+        }
+
+        List<TripParticipant> participants = tripParticipantRepository.findByTripId(tripId);
+
+        return participants.stream()
+                .map(participant -> new UserDTO(
+                        participant.getUser().getId(),
+                        participant.getUser().getEmail(),
+                        participant.getUser().getFirstName(),
+                        participant.getUser().getLastName(),
+                        participant.getUser().getCreatedAt()
+                ))
+                .collect(Collectors.toList());
     }
 }

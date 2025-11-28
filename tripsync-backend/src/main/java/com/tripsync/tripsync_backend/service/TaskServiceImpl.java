@@ -8,6 +8,7 @@ import com.tripsync.tripsync_backend.exception.ResourceNotFoundException;
 import com.tripsync.tripsync_backend.exception.UnauthorizedException;
 import com.tripsync.tripsync_backend.model.Task;
 import com.tripsync.tripsync_backend.model.Trip;
+import com.tripsync.tripsync_backend.model.TripParticipant;
 import com.tripsync.tripsync_backend.model.User;
 import com.tripsync.tripsync_backend.repository.TaskRepository;
 import com.tripsync.tripsync_backend.repository.TripParticipantRepository;
