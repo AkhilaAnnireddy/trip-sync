@@ -128,15 +128,31 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
 
 
   const addCustomPin = async (pin) => {
-    if (currentTrip && currentUser) {
-      try {
-        await loadStopsForTrip(currentTrip.id);
-      } catch (error) {
-        console.error('Error adding stop:', error);
-        alert('Failed to add stop. Please try again.');
-      }
+  if (currentTrip && currentUser) {
+    try {
+      // First, add the stop to the backend
+      const stopData = {
+        placeName: pin.name,
+        fullAddress: pin.address,
+        customName: pin.name,
+        description: pin.description || '',
+        latitude: pin.lat,
+        longitude: pin.lng,
+      };
+
+      console.log('Adding stop to backend:', stopData);
+      await StopsAPI.addStopToTrip(currentTrip.id, stopData);
+      
+      // Then reload all stops to get fresh data from backend
+      await loadStopsForTrip(currentTrip.id);
+      
+      console.log('✅ Stop added successfully');
+    } catch (error) {
+      console.error('Error adding stop:', error);
+      alert('Failed to add stop. Please try again.');
     }
-  };
+  }
+};
 
   const deleteCustomPin = async (pinId) => {
     if (currentTrip) {
