@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -22,4 +23,8 @@ public class TripDTO {
     private UserDTO createdBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private BigDecimal startLatitude;
+    private BigDecimal startLongitude;
+    private BigDecimal destinationLatitude;
+    private BigDecimal destinationLongitude;
 }

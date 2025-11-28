@@ -208,16 +208,20 @@ public class TripInviteServiceImpl implements TripInviteService {
         );
 
         return new TripDTO(
-                trip.getId(),
-                trip.getName(),
-                trip.getDescription(),
-                trip.getDestination(),
-                trip.getStartingPoint(),
-                trip.getStartDate(),
-                trip.getEndDate(),
-                createdByDTO,
-                trip.getCreatedAt(),
-                trip.getUpdatedAt()
+                trip.getId(),                      // Long
+                trip.getName(),                    // String
+                trip.getDescription(),             // String
+                trip.getDestination(),             // String
+                trip.getStartingPoint(),           // String
+                trip.getStartDate(),               // LocalDate
+                trip.getEndDate(),                 // LocalDate
+                createdByDTO,                      // UserDTO
+                trip.getCreatedAt(),               // LocalDateTime
+                trip.getUpdatedAt(),               // LocalDateTime
+                trip.getStartLatitude(),           // BigDecimal
+                trip.getStartLongitude(),          // BigDecimal
+                trip.getDestinationLatitude(),     // BigDecimal
+                trip.getDestinationLongitude()     // BigDecimal
         );
     }
 }

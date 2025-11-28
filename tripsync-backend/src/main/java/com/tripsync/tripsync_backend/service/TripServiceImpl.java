@@ -42,6 +42,10 @@ public class TripServiceImpl implements TripService {
         trip.setDescription(request.getDescription());
         trip.setDestination(request.getDestination());
         trip.setStartingPoint(request.getStartingPoint());
+        trip.setStartLatitude(request.getStartLatitude());
+        trip.setStartLongitude(request.getStartLongitude());
+        trip.setDestinationLatitude(request.getDestinationLatitude());
+        trip.setDestinationLongitude(request.getDestinationLongitude());
         trip.setStartDate(request.getStartDate());
         trip.setEndDate(request.getEndDate());
         trip.setCreatedBy(user);
@@ -103,6 +107,10 @@ public class TripServiceImpl implements TripService {
         trip.setDescription(request.getDescription());
         trip.setDestination(request.getDestination());
         trip.setStartingPoint(request.getStartingPoint());
+        trip.setStartLatitude(request.getStartLatitude());
+        trip.setStartLongitude(request.getStartLongitude());
+        trip.setDestinationLatitude(request.getDestinationLatitude());
+        trip.setDestinationLongitude(request.getDestinationLongitude());
         trip.setStartDate(request.getStartDate());
         trip.setEndDate(request.getEndDate());
 
@@ -207,7 +215,11 @@ public class TripServiceImpl implements TripService {
                 trip.getEndDate(),
                 createdByDTO,
                 trip.getCreatedAt(),
-                trip.getUpdatedAt()
+                trip.getUpdatedAt(),
+                trip.getStartLatitude(),
+                trip.getStartLongitude(),
+                trip.getDestinationLatitude(),
+                trip.getDestinationLongitude()
         );
     }
 

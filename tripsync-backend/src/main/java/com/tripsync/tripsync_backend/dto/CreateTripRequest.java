@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Data
@@ -20,6 +21,14 @@ public class CreateTripRequest {
     private String destination;
 
     private String startingPoint;
+
+    private BigDecimal startLatitude;
+
+    private BigDecimal startLongitude;
+
+    private BigDecimal destinationLatitude;
+
+    private BigDecimal destinationLongitude;
 
     private LocalDate startDate;
 

@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -31,6 +32,18 @@ public class Trip {
 
     @Column(name = "starting_point")
     private String startingPoint;
+
+    @Column(name = "start_latitude", precision = 10, scale = 8)
+    private BigDecimal startLatitude;
+
+    @Column(name = "start_longitude", precision = 11, scale = 8)
+    private BigDecimal startLongitude;
+
+    @Column(name = "destination_latitude", precision = 10, scale = 8)
+    private BigDecimal destinationLatitude;
+
+    @Column(name = "destination_longitude", precision = 11, scale = 8)
+    private BigDecimal destinationLongitude;
 
     @Column(name = "start_date")
     private LocalDate startDate;
