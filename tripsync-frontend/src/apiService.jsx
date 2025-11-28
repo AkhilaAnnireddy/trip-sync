@@ -2,11 +2,11 @@
 const API_BASE_URL = '/api';
 
 // Hardcoded token for development
-const HARDCODED_TOKEN = 'eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJzaHJhZGRoYUBleGFtcGxlLmNvbSIsImlhdCI6MTc2NDI4ODQ4NywiZXhwIjoxNzY0Mzc0ODg3fQ.fWS2nhtCtkpgM8qLBgYKehEHMYYpn6kGRV0fItofMxxfNEBGA6wum_rSNLDCJbTJ';
+//const HARDCODED_TOKEN = 'eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJzaHJhZGRoYUBleGFtcGxlLmNvbSIsImlhdCI6MTc2NDI4ODQ4NywiZXhwIjoxNzY0Mzc0ODg3fQ.fWS2nhtCtkpgM8qLBgYKehEHMYYpn6kGRV0fItofMxxfNEBGA6wum_rSNLDCJbTJ';
 
 // Token management
 export const TokenManager = {
-  getToken: () => localStorage.getItem('authToken') || HARDCODED_TOKEN,
+  getToken: () => localStorage.getItem('authToken'),
   setToken: (token) => localStorage.setItem('authToken', token),
   removeToken: () => localStorage.removeItem('authToken'),
 };

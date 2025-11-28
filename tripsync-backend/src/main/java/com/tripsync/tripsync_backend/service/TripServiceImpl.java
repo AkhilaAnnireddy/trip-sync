@@ -200,6 +200,7 @@ public class TripServiceImpl implements TripService {
                 trip.getName(),
                 trip.getDescription(),
                 trip.getDestination(),
+                trip.getStartingPoint(),
                 trip.getStartDate(),
                 trip.getEndDate(),
                 createdByDTO,

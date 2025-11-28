@@ -16,6 +16,7 @@ public class TripDTO {
     private String name;
     private String description;
     private String destination;
+    private String startingPoint;
     private LocalDate startDate;
     private LocalDate endDate;
     private UserDTO createdBy;

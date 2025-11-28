@@ -29,6 +29,9 @@ public class Trip {
 
     private String destination;
 
+    @Column(name = "starting_point")
+    private String startingPoint;
+
     @Column(name = "start_date")
     private LocalDate startDate;
 
