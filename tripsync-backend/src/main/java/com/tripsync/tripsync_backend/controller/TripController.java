@@ -73,7 +73,7 @@ public class TripController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/trips/{id}/participants")
+    @GetMapping("/{id}/participants")
     public ResponseEntity<List<UserDTO>> getTripParticipants(@PathVariable Long id) {
         List<UserDTO> participants = tripService.getTripParticipants(id, getCurrentUserEmail());
         return ResponseEntity.ok(participants);
