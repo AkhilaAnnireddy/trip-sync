@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Plus, X, MapPin, Navigation, Sparkles, ArrowRight, Calendar, Trash2, Edit2 } from 'lucide-react';
-import { TripsAPI } from './apiService';
+import { TripsAPI, InviteAPI} from './apiService';
 import EditTripModal from './EditTripModal';
 
 const MAPBOX_TOKEN = 'pk.eyJ1Ijoic2hyYWRkaGEtc2hpbmRlIiwiYSI6ImNtZ29mbnA5azF1dmsybm9rYnk1d29tNHUifQ.WggehwJ0oUYLhFR8mzVnnQ';
@@ -15,6 +15,8 @@ export default function TripCreationAutocomplete({ onCreateTrip, existingTrips =
   const [editingTrip, setEditingTrip] = useState(null);
   const [deletingTripId, setDeletingTripId] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [tripParticipants, setTripParticipants] = useState({});
+  
 
   const [startSuggestions, setStartSuggestions] = useState([]);
   const [destSuggestions, setDestSuggestions] = useState([]);
@@ -218,6 +220,25 @@ if (!newTripDest.trim()) {
       setCreating(false);
     }
   };
+  useEffect(() => {
+  const loadAllParticipants = async () => {
+    for (const trip of existingTrips) {
+      try {
+        const participants = await InviteAPI.getTripParticipants(trip.id);
+        setTripParticipants(prev => ({
+          ...prev,
+          [trip.id]: participants
+        }));
+      } catch (error) {
+        console.error('Error loading participants for trip', trip.id, error);
+      }
+    }
+  };
+  
+  if (existingTrips.length > 0) {
+    loadAllParticipants();
+  }
+}, [existingTrips]);
 
   return (
     <div className="min-h-screen bg-gray-50 px-4">
@@ -500,33 +521,38 @@ if (!newTripDest.trim()) {
                           )}
                         </div>
 
-                        {trip.members && trip.members.length > 0 && (
-                          <div className="mt-3 pt-3 border-t border-gray-100">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-gray-500">{trip.members.length} {trip.members.length === 1 ? 'member' : 'members'}</span>
-                              <div className="flex -space-x-1.5">
-                                {trip.members.slice(0, 3).map((member, idx) => (
-                                  <div
-                                    key={idx}
-                                    className="w-6 h-6 rounded-full bg-indigo-100 border-2 border-white flex items-center justify-center"
-                                    title={member}
-                                  >
-                                    <span className="text-xs font-semibold text-indigo-600">
-                                      {member === 'You' ? '👤' : member[0]}
-                                    </span>
-                                  </div>
-                                ))}
-                                {trip.members.length > 3 && (
-                                  <div className="w-6 h-6 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center">
-                                    <span className="text-xs font-semibold text-gray-600">
-                                      +{trip.members.length - 3}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        )}
+                        {tripParticipants[trip.id] && tripParticipants[trip.id].length > 0 && (
+  <div className="mt-3 pt-3 border-t border-gray-100">
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-gray-500">
+        {tripParticipants[trip.id].length} {tripParticipants[trip.id].length === 1 ? 'member' : 'members'}
+      </span>
+      <div className="flex -space-x-1.5">
+        {tripParticipants[trip.id].slice(0, 3).map((participant, idx) => {
+          const initials = `${participant.firstName?.charAt(0) || ''}${participant.lastName?.charAt(0) || ''}`.toUpperCase();
+          return (
+            <div
+              key={participant.id}
+              className="w-6 h-6 rounded-full bg-indigo-100 border-2 border-white flex items-center justify-center"
+              title={`${participant.firstName} ${participant.lastName}`}
+            >
+              <span className="text-xs font-semibold text-indigo-600">
+                {initials}
+              </span>
+            </div>
+          );
+        })}
+        {tripParticipants[trip.id].length > 3 && (
+          <div className="w-6 h-6 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center">
+            <span className="text-xs font-semibold text-gray-600">
+              +{tripParticipants[trip.id].length - 3}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+)}
                       </button>
 
                       {/* Action Buttons */}

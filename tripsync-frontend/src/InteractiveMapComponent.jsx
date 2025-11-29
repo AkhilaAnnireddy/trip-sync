@@ -81,7 +81,7 @@ export const InteractiveMapComponent = ({
     font-size: 20px;
     cursor: pointer;
     box-shadow: 0 4px 8px rgba(0,0,0,0.4);
-    z-index: 100;
+    z-index: 10;
   `;
     startEl.innerHTML = '🏁';
 
@@ -93,13 +93,13 @@ export const InteractiveMapComponent = ({
         y: rect.top - mapRect.top
       };
       startEl.style.boxShadow = '0 8px 16px rgba(16, 185, 129, 0.6)';
-      startEl.style.zIndex = '1000';
+      startEl.style.zIndex = '30';
       setHoveredPin('start');
     });
 
     startEl.addEventListener('mouseleave', () => {
       startEl.style.boxShadow = '0 4px 8px rgba(0,0,0,0.4)';
-      startEl.style.zIndex = '100';
+      startEl.style.zIndex = '10';
       setHoveredPin(null);
     });
 
@@ -123,7 +123,7 @@ export const InteractiveMapComponent = ({
     font-size: 20px;
     cursor: pointer;
     box-shadow: 0 4px 8px rgba(0,0,0,0.4);
-    z-index: 100;
+    z-index: 10;
   `;
     destEl.innerHTML = '🎯';
 
@@ -135,13 +135,13 @@ export const InteractiveMapComponent = ({
         y: rect.top - mapRect.top
       };
       destEl.style.boxShadow = '0 8px 16px rgba(239, 68, 68, 0.6)';
-      destEl.style.zIndex = '1000';
+      destEl.style.zIndex = '30';
       setHoveredPin('destination');
     });
 
     destEl.addEventListener('mouseleave', () => {
       destEl.style.boxShadow = '0 4px 8px rgba(0,0,0,0.4)';
-      destEl.style.zIndex = '100';
+      destEl.style.zIndex = '10';
       setHoveredPin(null);
     });
 
@@ -198,6 +198,7 @@ if (startCoordinates || destCoordinates || customPins.length > 0) {
     cursor: pointer;
     box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     transition: all 0.2s ease;
+    z-index: 10;
   `;
       el.textContent = idx + 1;
       el.title = pin.name;
@@ -210,12 +211,12 @@ if (startCoordinates || destCoordinates || customPins.length > 0) {
           y: rect.top - mapRect.top
         };
         el.style.boxShadow = '0 8px 16px rgba(99, 102, 241, 0.6)';
-        el.style.zIndex = '1000';
+        el.style.zIndex = '30';
         setHoveredPin(idx);
       });
       el.addEventListener('mouseleave', () => {
         el.style.boxShadow = '0 4px 6px rgba(0,0,0,0.3)';
-        el.style.zIndex = 'auto';
+        el.style.zIndex = '10';
         setHoveredPin(null);
       });
 
