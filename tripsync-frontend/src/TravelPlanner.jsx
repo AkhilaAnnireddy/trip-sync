@@ -14,6 +14,7 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
   const [currentTrip, setCurrentTrip] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [tripParticipants, setTripParticipants] = useState({});
 
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -33,6 +34,7 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
   useEffect(() => {
     if (currentTrip) {
       loadStopsForTrip(currentTrip.id);
+      loadTripParticipants(currentTrip.id);
     }
   }, [currentTrip]);
 
@@ -82,8 +84,8 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
 
       const tripsData = await TripsAPI.getAllTrips();
       console.log('Raw trips data from backend:', tripsData);
+
       const transformedTrips = tripsData.map(trip => {
-        // Parse coordinates from backend
         const startCoords = trip.startLatitude && trip.startLongitude
           ? [parseFloat(trip.startLongitude), parseFloat(trip.startLatitude)]
           : null;
@@ -91,10 +93,6 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
         const destCoords = trip.destinationLatitude && trip.destinationLongitude
           ? [parseFloat(trip.destinationLongitude), parseFloat(trip.destinationLatitude)]
           : null;
-
-        console.log(`Trip "${trip.name}" coordinates:`, { startCoords, destCoords });
-        console.log(`Trip "${trip.name}" startPoint:`, trip.startingPoint); 
-
 
         return {
           id: trip.id,
@@ -117,42 +115,65 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
           updatedAt: trip.updatedAt
         };
       });
+
       setTrips(transformedTrips);
+
+      // ✅ Load participants for all trips
+      for (const trip of transformedTrips) {
+        await loadTripParticipants(trip.id);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
   };
-  console.log('fetched trips:', trips);
 
-
-  const addCustomPin = async (pin) => {
-  if (currentTrip && currentUser) {
-    try {
-      // First, add the stop to the backend
-      const stopData = {
-        placeName: pin.name,
-        fullAddress: pin.address,
-        customName: pin.name,
-        description: pin.description || '',
-        latitude: pin.lat,
-        longitude: pin.lng,
-      };
-
-      console.log('Adding stop to backend:', stopData);
-      await StopsAPI.addStopToTrip(currentTrip.id, stopData);
-      
-      // Then reload all stops to get fresh data from backend
-      await loadStopsForTrip(currentTrip.id);
-      
-      console.log('✅ Stop added successfully');
-    } catch (error) {
-      console.error('Error adding stop:', error);
-      alert('Failed to add stop. Please try again.');
-    }
+  const loadTripParticipants = async (tripId) => {
+  try {
+    console.log('🔍 Attempting to load participants for trip ID:', tripId);
+    const participants = await InviteAPI.getTripParticipants(tripId);
+    console.log('✅ Raw participants response:', participants);
+    console.log('✅ Number of participants:', participants?.length);
+    
+    setTripParticipants(prev => ({  // ✅ Use functional update
+      ...prev,
+      [tripId]: participants,
+    }));
+    
+    console.log('✅ Updated tripParticipants state for trip', tripId);
+  } catch (error) {
+    console.error('❌ Error loading participants:', error);
+    console.error('❌ Error details:', error.message);
   }
 };
+
+  const addCustomPin = async (pin) => {
+    if (currentTrip && currentUser) {
+      try {
+        // First, add the stop to the backend
+        const stopData = {
+          placeName: pin.name,
+          fullAddress: pin.address,
+          customName: pin.name,
+          description: pin.description || '',
+          latitude: pin.lat,
+          longitude: pin.lng,
+        };
+
+        console.log('Adding stop to backend:', stopData);
+        await StopsAPI.addStopToTrip(currentTrip.id, stopData);
+
+        // Then reload all stops to get fresh data from backend
+        await loadStopsForTrip(currentTrip.id);
+
+        console.log('✅ Stop added successfully');
+      } catch (error) {
+        console.error('Error adding stop:', error);
+        alert('Failed to add stop. Please try again.');
+      }
+    }
+  };
 
   const deleteCustomPin = async (pinId) => {
     if (currentTrip) {
@@ -310,31 +331,30 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
   };
 
   const generateShareLink = async () => {
-    if (currentTrip) {
-      try {
-        // This will now call POST /api/trips/{tripId}/invites to create a new invite
-        const response = await InviteAPI.generateInviteLink(currentTrip.id);
+  if (currentTrip) {
+    try {
+      const response = await InviteAPI.generateInviteLink(currentTrip.id);
+      console.log('Invite created:', response);
 
-        console.log('Invite created:', response);
+      const inviteToken = response.token || response.inviteToken;
 
-        // The response should be InviteResponse object with token field
-        const inviteToken = response.token || response.inviteToken;
-
-        if (!inviteToken) {
-          console.error('No token in response:', response);
-          alert('Failed to generate invite link');
-          return;
-        }
-
-        // Create a registration link with the invite token
-        const link = `${window.location.origin}/?invite=${inviteToken}`;
-        setShareLink(link);
-      } catch (error) {
-        console.error('Error generating invite link:', error);
-        alert('Failed to generate invite link: ' + error.message);
+      if (!inviteToken) {
+        console.error('No token in response:', response);
+        alert('Failed to generate invite link');
+        return;
       }
+
+      const link = `${window.location.origin}/?invite=${inviteToken}`;
+      setShareLink(link);
+
+      // ✅ Reload participants (will now work correctly)
+      await loadTripParticipants(currentTrip.id);
+    } catch (error) {
+      console.error('Error generating invite link:', error);
+      alert('Failed to generate invite link: ' + error.message);
     }
-  };
+  }
+};
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(shareLink);
@@ -491,153 +511,165 @@ export default function TravelPlanner({ userData, onLogoutToHome }) {
                 <div className="flex items-center gap-2 mb-3">
                   <Users size={18} className="text-gray-400" />
                   <p className="text-sm font-medium text-gray-700">
-                    {currentTrip.members.length} {currentTrip.members.length === 1 ? 'Member' : 'Members'}
+                    {(tripParticipants[currentTrip.id] || []).length} Participant{(tripParticipants[currentTrip.id] || []).length !== 1 ? 's' : ''}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {currentTrip.members.map((member, idx) => (
-                    <div
-                      key={idx}
-                      className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-sm font-medium"
-                    >
-                      {member === currentUser?.name ? member + ' (You)' : member}
-                    </div>
-                  ))}
+                  {(tripParticipants[currentTrip.id] || []).map((participant, idx) => {
+                    const initials = `${participant.firstName?.charAt(0) || ''}${participant.lastName?.charAt(0) || ''}`.toUpperCase();
+                    const isCurrentUser = participant.id === currentUser?.id;
+
+                    return (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-sm font-medium"
+                      >
+                        {/* Avatar Circle */}
+                        <div className="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                          {initials}
+                        </div>
+                        <span>
+                          {participant.firstName} {participant.lastName}
+                          {isCurrentUser && ' (You)'}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
 
             {/* Invite Modal */}
-{showInviteModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-    <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="text-xl font-bold text-gray-900">Invite to Trip</h3>
-        <button
-          onClick={() => {
-            setShowInviteModal(false);
-            setShareLink(''); // Clear share link when closing
-          }}
-          className="text-gray-400 hover:text-gray-600 rounded-lg p-1 transition"
-        >
-          <X size={20} />
-        </button>
-      </div>
+            {showInviteModal && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-bold text-gray-900">Invite to Trip</h3>
+                    <button
+                      onClick={() => {
+                        setShowInviteModal(false);
+                        setShareLink(''); // Clear share link when closing
+                      }}
+                      className="text-gray-400 hover:text-gray-600 rounded-lg p-1 transition"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
 
-      {/* Share Link Section - Generate First */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Generate Invite Link
-        </label>
-        <button
-          onClick={generateShareLink}
-          className="w-full px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2"
-        >
-          <Share2 size={16} />
-          {shareLink ? 'Regenerate Link' : 'Generate Link'}
-        </button>
-      </div>
+                  {/* Share Link Section - Generate First */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Generate Invite Link
+                    </label>
+                    <button
+                      onClick={generateShareLink}
+                      className="w-full px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2"
+                    >
+                      <Share2 size={16} />
+                      {shareLink ? 'Regenerate Link' : 'Generate Link'}
+                    </button>
+                  </div>
 
-      {/* Show options only after link is generated */}
-      {shareLink && (
-        <>
-          {/* Display the link */}
-          <div className="mb-6 p-3 bg-blue-50 rounded-lg border border-blue-200">
-            <p className="text-xs text-gray-600 mb-2">Your invite link:</p>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={shareLink}
-                readOnly
-                className="flex-1 px-2 py-1.5 text-xs bg-white border border-gray-300 rounded text-gray-700"
-              />
-              <button
-                onClick={copyToClipboard}
-                className="px-3 py-1.5 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 transition flex items-center gap-1"
-              >
-                <Copy size={14} />
-                Copy
-              </button>
-            </div>
-          </div>
+                  {/* Show options only after link is generated */}
+                  {shareLink && (
+                    <>
+                      {/* Display the link */}
+                      <div className="mb-6 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <p className="text-xs text-gray-600 mb-2">Your invite link:</p>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={shareLink}
+                            readOnly
+                            className="flex-1 px-2 py-1.5 text-xs bg-white border border-gray-300 rounded text-gray-700"
+                          />
+                          <button
+                            onClick={copyToClipboard}
+                            className="px-3 py-1.5 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 transition flex items-center gap-1"
+                          >
+                            <Copy size={14} />
+                            Copy
+                          </button>
+                        </div>
+                      </div>
 
-          {/* Email Invite Section */}
-          <div className="mb-6 pt-6 border-t border-gray-200">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Send Invite via Email
-            </label>
-            <p className="text-xs text-gray-500 mb-3">
-              Enter an email address to send the invite link directly
-            </p>
-            <div className="flex gap-2">
-              <input
-                type="email"
-                placeholder="friend@example.com"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-              />
-              <button
-                onClick={() => {
-                  if (!inviteEmail.trim()) {
-                    alert('Please enter an email address');
-                    return;
-                  }
-                  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail)) {
-                    alert('Please enter a valid email address');
-                    return;
-                  }
+                      {/* Email Invite Section */}
+                      <div className="mb-6 pt-6 border-t border-gray-200">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Send Invite via Email
+                        </label>
+                        <p className="text-xs text-gray-500 mb-3">
+                          Enter an email address to send the invite link directly
+                        </p>
+                        <div className="flex gap-2">
+                          <input
+                            type="email"
+                            placeholder="friend@example.com"
+                            value={inviteEmail}
+                            onChange={(e) => setInviteEmail(e.target.value)}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                          />
+                          <button
+                            onClick={() => {
+                              if (!inviteEmail.trim()) {
+                                alert('Please enter an email address');
+                                return;
+                              }
+                              if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail)) {
+                                alert('Please enter a valid email address');
+                                return;
+                              }
 
-                  const subject = encodeURIComponent(`Join my trip: ${currentTrip.name}`);
-                  const body = encodeURIComponent(
-                    `Hi!\n\nYou're invited to join my trip "${currentTrip.name}"!\n\n` +
-                    `📍 Route: ${currentTrip.startPoint || 'Starting point'} → ${currentTrip.destination}\n` +
-                    `📅 ${currentTrip.startDate ? `${new Date(currentTrip.startDate).toLocaleDateString()} - ${new Date(currentTrip.endDate).toLocaleDateString()}` : 'Dates TBD'}\n\n` +
-                    `Click the link below to join:\n${shareLink}\n\n` +
-                    `Looking forward to planning this trip together!\n\n` +
-                    `Sent via TripSync`
-                  );
-                  window.location.href = `mailto:${inviteEmail}?subject=${subject}&body=${body}`;
-                  
-                  // Clear the email input after sending
-                  setInviteEmail('');
-                }}
-                className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition flex items-center gap-2"
-              >
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  width="16" 
-                  height="16" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  strokeWidth="2" 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round"
-                >
-                  <rect width="20" height="16" x="2" y="4" rx="2"/>
-                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
-                </svg>
-                Send
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+                              const subject = encodeURIComponent(`Join my trip: ${currentTrip.name}`);
+                              const body = encodeURIComponent(
+                                `Hi!\n\nYou're invited to join my trip "${currentTrip.name}"!\n\n` +
+                                `📍 Route: ${currentTrip.startPoint || 'Starting point'} → ${currentTrip.destination}\n` +
+                                `📅 ${currentTrip.startDate ? `${new Date(currentTrip.startDate).toLocaleDateString()} - ${new Date(currentTrip.endDate).toLocaleDateString()}` : 'Dates TBD'}\n\n` +
+                                `Click the link below to join:\n${shareLink}\n\n` +
+                                `Looking forward to planning this trip together!\n\n` +
+                                `Sent via TripSync`
+                              );
+                              window.location.href = `mailto:${inviteEmail}?subject=${subject}&body=${body}`;
 
-      <button
-        onClick={() => {
-          setShowInviteModal(false);
-          setShareLink(''); // Clear share link when closing
-          setInviteEmail(''); // Clear email input
-        }}
-        className="w-full px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition mt-6"
-      >
-        Done
-      </button>
-    </div>
-  </div>
-)}
+                              // Clear the email input after sending
+                              setInviteEmail('');
+                            }}
+                            className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition flex items-center gap-2"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <rect width="20" height="16" x="2" y="4" rx="2" />
+                              <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                            </svg>
+                            Send
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      setShowInviteModal(false);
+                      setShareLink(''); // Clear share link when closing
+                      setInviteEmail(''); // Clear email input
+                    }}
+                    className="w-full px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition mt-6"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Tabs */}
             <div className="border-b border-gray-200 mb-6">

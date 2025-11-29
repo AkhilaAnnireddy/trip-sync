@@ -33,30 +33,52 @@ export default function TaskTab({ currentTrip, setCurrentTrip, trips, setTrips }
   };
 const loadParticipants = async () => {
   try {
-    // Use trip members from currentTrip if available
-    if (currentTrip?.members) {
-      // For now, we'll create a simple participant list from members
-      // This is a temporary solution until the backend endpoint is ready
-      const participantList = currentTrip.members.map((member, index) => ({
-        id: index + 1, // Temporary ID
-        firstName: member.split(' ')[0] || member,
-        lastName: member.split(' ').slice(1).join(' ') || ''
-      }));
-      setParticipants(participantList);
-    }
+    console.log('🔍 TaskTab: Loading participants for trip', currentTrip.id);
+    
+    // Try to fetch from backend first
+    const backendParticipants = await InviteAPI.getTripParticipants(currentTrip.id);
+    console.log('✅ TaskTab: Loaded participants from backend:', backendParticipants);
+    
+    setParticipants(backendParticipants);
   } catch (error) {
-    console.error('Error loading participants:', error);
+    console.warn('⚠️ TaskTab: Could not load participants from backend, using fallback:', error.message);
+    
+    // Fallback: Use trip members from currentTrip
+    if (currentTrip?.members) {
+      const participantList = currentTrip.members.map((member, index) => ({
+        id: index + 1, // Temporary ID - won't work for task assignment!
+        firstName: member.split(' ')[0] || member,
+        lastName: member.split(' ').slice(1).join(' ') || '',
+        email: `${member.toLowerCase().replace(/\s+/g, '.')}@temp.com` // Temp email
+      }));
+      console.log('📋 TaskTab: Using fallback participants:', participantList);
+      setParticipants(participantList);
+    } else if (currentTrip?.createdBy) {
+      // At minimum, show the trip creator
+      setParticipants([
+        {
+          id: currentTrip.createdBy.id,
+          firstName: currentTrip.createdBy.firstName,
+          lastName: currentTrip.createdBy.lastName,
+          email: currentTrip.createdBy.email
+        }
+      ]);
+      console.log('📋 TaskTab: Using trip creator as only participant');
+    } else {
+      setParticipants([]);
+      console.warn('⚠️ TaskTab: No participants available');
+    }
   }
 };
 
   const addTask = async () => {
-  if (currentTrip && newTask) {
+  if (currentTrip && newTask && newAssignee) {
     try {
       const taskData = {
         title: newTask,
         description: newDescription || newTask,
         status: 'TODO',
-        assignedToId: newAssignee ? parseInt(newAssignee) : null,
+        assignedToId: parseInt(newAssignee),
         dueDate: dueDate || null
       };
 
@@ -123,7 +145,7 @@ const loadParticipants = async () => {
 
   const todoTasks = getTasksByStatus('TODO');
   const inProgressTasks = getTasksByStatus('IN_PROGRESS');
-  const completedTasks = getTasksByStatus('COMPLETED');
+  const completedTasks = getTasksByStatus('DONE');
 
   const totalTasks = tasks.length;
   const completionRate = totalTasks > 0 ? Math.round((completedTasks.length / totalTasks) * 100) : 0;
@@ -214,7 +236,7 @@ const loadParticipants = async () => {
         placeholder="Task title *"
         value={newTask}
         onChange={(e) => setNewTask(e.target.value)}
-        onKeyPress={(e) => e.key === 'Enter' && newTask && addTask()}
+        onKeyPress={(e) => e.key === 'Enter' && newTask && newAssignee && addTask()}
         className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
       />
       
@@ -224,7 +246,7 @@ const loadParticipants = async () => {
         onChange={(e) => setNewAssignee(e.target.value)}
         className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
       >
-        <option value="">Assign to (optional)</option>
+        <option value="">Assign to *</option>
         {participants.map((participant) => (
           <option key={participant.id} value={participant.id}>
             {participant.firstName} {participant.lastName}
@@ -252,7 +274,7 @@ const loadParticipants = async () => {
       />
       <button
         onClick={addTask}
-        disabled={!newTask}
+        disabled={!newTask || !newAssignee}
         className="bg-indigo-600 text-white py-2 rounded-lg font-medium text-sm hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
       >
         <Plus size={18} />
@@ -417,11 +439,11 @@ const loadParticipants = async () => {
 
         {/* Completed Column */}
         <div
-          onDragOver={(e) => handleDragOver(e, 'COMPLETED')}
+          onDragOver={(e) => handleDragOver(e, 'DONE')}
           onDragLeave={handleDragLeave}
-          onDrop={(e) => handleDrop(e, 'COMPLETED')}
+          onDrop={(e) => handleDrop(e, 'DONE')}
           className={`bg-white rounded-lg border p-4 min-h-96 transition-all ${
-            dragOverColumn === 'COMPLETED' 
+            dragOverColumn === 'DONE' 
               ? 'border-green-500 ring-2 ring-green-200' 
               : 'border-gray-200'
           }`}
