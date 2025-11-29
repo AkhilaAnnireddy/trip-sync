@@ -1,9 +1,6 @@
 // API Configuration
 const API_BASE_URL = '/api';
 
-// Hardcoded token for development
-//const HARDCODED_TOKEN = 'eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJzaHJhZGRoYUBleGFtcGxlLmNvbSIsImlhdCI6MTc2NDI4ODQ4NywiZXhwIjoxNzY0Mzc0ODg3fQ.fWS2nhtCtkpgM8qLBgYKehEHMYYpn6kGRV0fItofMxxfNEBGA6wum_rSNLDCJbTJ';
-
 // Token management
 export const TokenManager = {
   getToken: () => localStorage.getItem('authToken'),
@@ -19,7 +16,7 @@ const apiFetch = async (endpoint, options = {}) => {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
+      ...(token && { 'Authorization': `Bearer ${token}` }),
       ...options.headers,
     },
   };
@@ -47,25 +44,37 @@ const apiFetch = async (endpoint, options = {}) => {
 // Authentication API
 export const AuthAPI = {
   register: async (userData) => {
-    return await apiFetch('/auth/register', {
+    const response = await apiFetch('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({
-        email: userData.email,
-        password: userData.password,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-      }),
+      body: JSON.stringify(userData), // ✅ Pass entire userData object (includes inviteToken if present)
     });
-  },
-
-  login: async (email, password) => {
-    const response = await apiFetch('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
+    
+    // ✅ Save token after registration
     if (response.token) {
       TokenManager.setToken(response.token);
+      console.log('✅ Token saved after registration');
     }
+    
+    return response;
+  },
+
+  login: async (email, password, inviteToken = null) => { // ✅ Added inviteToken parameter
+    const loginData = { email, password };
+    if (inviteToken) {
+      loginData.inviteToken = inviteToken;
+    }
+    
+    const response = await apiFetch('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(loginData),
+    });
+    
+    // ✅ Save token after login
+    if (response.token) {
+      TokenManager.setToken(response.token);
+      console.log('✅ Token saved after login');
+    }
+    
     return response;
   },
 
@@ -149,22 +158,20 @@ export const ExpensesAPI = {
     });
   },
 };
+
 // Participants/Invite API
 export const InviteAPI = {
-  // Change from GET to POST to create a new invite
   generateInviteLink: async (tripId) => {
     return await apiFetch(`/trips/${tripId}/invites`, {
-      method: 'POST',  // Changed from GET to POST
-      body: JSON.stringify({}), // Empty body for POST request
+      method: 'POST',
+      body: JSON.stringify({}),
     });
   },
   
-  // Get invite details by token
   getInviteDetails: async (token) => {
     return await apiFetch(`/invites/${token}`);
   },
   
-  // Accept an invite
   acceptInvite: async (token) => {
     return await apiFetch(`/invites/${token}/accept`, {
       method: 'POST',
@@ -172,12 +179,10 @@ export const InviteAPI = {
     });
   },
   
-  // Get all invites for a trip
   getTripInvites: async (tripId) => {
     return await apiFetch(`/trips/${tripId}/invites`);
   },
   
-  // Revoke an invite
   revokeInvite: async (tripId, token) => {
     return await apiFetch(`/trips/${tripId}/invites/${token}`, {
       method: 'DELETE',
@@ -188,18 +193,15 @@ export const InviteAPI = {
     return await apiFetch('/auth/register', {
       method: 'POST',
       body: JSON.stringify({
-        email: userData.email,
-        password: userData.password,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
+        ...userData,
         inviteToken: inviteToken,
       }),
     });
   },
   
   getTripParticipants: async (tripId) => {
-  return await apiFetch(`/api/trips/trips/${tripId}/participants`);
-},
+    return await apiFetch(`/trips/${tripId}/participants`); // ✅ FIXED: Removed duplicate /api/trips
+  },
 };
 
 // Stops API
@@ -230,8 +232,8 @@ export const StopsAPI = {
   },
   
   deleteStop: async (stopId) => {
-  return await apiFetch(`/stops/${stopId}`, {
-    method: 'DELETE',
-  });
-},
+    return await apiFetch(`/stops/${stopId}`, {
+      method: 'DELETE',
+    });
+  },
 };

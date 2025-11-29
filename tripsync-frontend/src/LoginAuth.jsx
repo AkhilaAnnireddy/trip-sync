@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Mail, User, KeyRound, ArrowRight, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
 import { AuthAPI } from './apiService';
 
@@ -11,6 +11,30 @@ export default function LoginAuth({ onLoginSuccess, onBackToHome }) {
   const [isRegistering, setIsRegistering] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [hasInvite, setHasInvite] = useState(false);
+  console.log('🔍 localStorage pendingInvite:', localStorage.getItem('pendingInvite'));
+  console.log('🔍 localStorage pendingInvite type:', typeof localStorage.getItem('pendingInvite'));
+  
+// Check for pending invite on mount
+useEffect(() => {
+  const pendingInvite = localStorage.getItem('pendingInvite');
+  
+  // Check if invite exists and is valid (not empty, not "null", not "undefined")
+  if (pendingInvite && 
+      pendingInvite !== '' && 
+      pendingInvite !== 'null' && 
+      pendingInvite !== 'undefined') {
+    setHasInvite(true);
+    console.log('✅ Pending invite found:', pendingInvite);
+  } else {
+    setHasInvite(false);
+    // Clean up invalid values
+    if (pendingInvite) {
+      localStorage.removeItem('pendingInvite');
+      console.log('🧹 Cleaned up invalid invite token');
+    }
+  }
+}, []);
 
   // Handle Login
   const handleLogin = async () => {
@@ -33,10 +57,19 @@ export default function LoginAuth({ onLoginSuccess, onBackToHome }) {
     setLoading(true);
 
     try {
-      const response = await AuthAPI.login(email, password);
+      // Get invite token if exists
+      const inviteToken = localStorage.getItem('pendingInvite');
+      
+      const response = await AuthAPI.login(email, password, inviteToken);
       
       // Get user details
       const userDetails = await AuthAPI.getCurrentUser();
+      
+      // Clear the pending invite
+      if (inviteToken) {
+        localStorage.removeItem('pendingInvite');
+        console.log('✅ User added to trip via invite token');
+      }
       
       setStep('success');
       
@@ -89,12 +122,18 @@ export default function LoginAuth({ onLoginSuccess, onBackToHome }) {
     setLoading(true);
 
     try {
+      // Get invite token if exists
+      const inviteToken = localStorage.getItem('pendingInvite');
+      
       await AuthAPI.register({
         email,
         password,
         firstName,
-        lastName
+        lastName,
+        inviteToken // Include invite token in registration
       });
+
+      console.log(inviteToken ? '✅ Registered with invite token' : '✅ Registered successfully');
 
       // Auto-login after registration
       await handleLogin();
@@ -140,6 +179,13 @@ export default function LoginAuth({ onLoginSuccess, onBackToHome }) {
           </div>
           <h1 className="text-3xl font-bold text-gray-800 mb-2">TripSync</h1>
           <p className="text-gray-600">
+            {hasInvite && (
+              <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium mb-2">
+                <CheckCircle size={16} />
+                You have a trip invite!
+              </span>
+            )}
+            <br />
             {isRegistering ? 'Create an account to start planning' : 'Sign in to start planning your adventures'}
           </p>
         </div>
@@ -155,6 +201,11 @@ export default function LoginAuth({ onLoginSuccess, onBackToHome }) {
                 </h2>
                 <p className="text-gray-600 text-sm">
                   {isRegistering ? 'Fill in your details to get started' : 'Enter your credentials to continue'}
+                  {hasInvite && (
+                    <span className="block mt-1 text-green-600 font-medium">
+                      You'll be added to the trip after {isRegistering ? 'registration' : 'login'}!
+                    </span>
+                  )}
                 </p>
               </div>
 
@@ -285,7 +336,9 @@ export default function LoginAuth({ onLoginSuccess, onBackToHome }) {
                 <h2 className="text-2xl font-bold text-gray-800 mb-2">
                   {isRegistering ? 'Account Created!' : 'Welcome Back!'}
                 </h2>
-                <p className="text-gray-600">Logging you in...</p>
+                <p className="text-gray-600">
+                  {hasInvite ? 'Joining your trip...' : 'Logging you in...'}
+                </p>
               </div>
               <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
               <p className="text-sm text-gray-500">Redirecting to your dashboard...</p>
