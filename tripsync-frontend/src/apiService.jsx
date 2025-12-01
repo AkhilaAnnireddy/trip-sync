@@ -1,5 +1,6 @@
 // API Configuration
-const API_BASE_URL = '/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://34.204.176.96:8080/api';
+
 
 // Token management
 export const TokenManager = {
